@@ -99,10 +99,25 @@ class Axis(DataSet):
         self.step_offsets[0] = 0
         i = 1
         k = 1
+        last_delta = self.data[1] - self.data[0] if len(self.data) > 1 else 1
         while i < len(self.data):
-            if self.data[i] == self.data[0]:
+            # here we used to check if the axis value returned to the initial value
+            # unfortunately, there are sims that can cause points to be skipped for some
+            # steps and if the initial point is skipped, the step is not recognized. Now,
+            # we check for a sign change in the derivative as well. That way if the axis
+            # value is going up, we will see when it goes down to reset to a new value
+            # or if it is going down (DC sweep for example), we will see when it goes back
+            # up to reset. I left the original check in as well (thinking that this could)
+            # catch a single value step.
+            delta = self.data[i] - self.data[i-1]
+            if np.sign(delta) != np.sign(last_delta) or self.data[i] == self.data[0]:
                 self.step_offsets[k] = i
                 k += 1
+            else:
+                # the sign of the delta will not match twice for the start of a new
+                # step so only update last delta if there was not a new step
+                last_delta = delta
+    
             i += 1
 
         if k != len(self.step_info):
